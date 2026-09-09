@@ -18,10 +18,10 @@ type Tournament = {
 type TeamRegistration = {
   id?: string;
   status: string;
-  teams: {
-    id: string;
-    name: string;
-  } | null;
+  teams:
+    | { id: string; name: string }
+    | { id: string; name: string }[]
+    | null;
 };
 
 function formatDate(value: string | null) {
@@ -221,7 +221,7 @@ export default async function TournamentDetailPage({
 
   const registeredTeamIds = new Set(
     teamRegistrations
-      .map((registration) => registration.teams?.id)
+      .map((registration) => getTeam(registration.teams)?.id)
       .filter(Boolean)
   );
 
@@ -667,7 +667,7 @@ export default async function TournamentDetailPage({
                         fontWeight: 800,
                       }}
                     >
-                      {registration.teams?.name || "Unknown team"}
+                      {getTeam(registration.teams)?.name || "Unknown team"}
                     </div>
 
                     <div
@@ -1011,6 +1011,19 @@ function getCityName(
     return cities[0]?.name ?? null;
   }
   return cities.name ?? null;
+}
+
+function getTeam(
+  teams:
+    | { id: string; name: string }
+    | { id: string; name: string }[]
+    | null
+): { id: string; name: string } | null {
+  if (!teams) return null;
+  if (Array.isArray(teams)) {
+    return teams[0] ?? null;
+  }
+  return teams;
 }
 
 function MetaChip({ text }: { text: string }) {
