@@ -12,7 +12,7 @@ type Tournament = {
   start_date: string | null;
   end_date: string | null;
   num_teams: number | null;
-  cities: { name: string } | null;
+  cities: { name: string } | { name: string }[] | null;
 };
 
 type TeamRegistration = {
@@ -381,7 +381,7 @@ export default async function TournamentDetailPage({
         >
           <MetaChip
             text={`📍 ${
-              typedTournament.cities?.name || "City TBA"
+              getCityName(typedTournament.cities) || "City TBA"
             }`}
           />
           <MetaChip text={`🏏 ${typedTournament.format || "Format TBA"}`} />
@@ -1002,6 +1002,16 @@ export default async function TournamentDetailPage({
 }
 
 /* ---------- COMPONENTS ---------- */
+
+function getCityName(
+  cities: { name: string } | { name: string }[] | null
+): string | null {
+  if (!cities) return null;
+  if (Array.isArray(cities)) {
+    return cities[0]?.name ?? null;
+  }
+  return cities.name ?? null;
+}
 
 function MetaChip({ text }: { text: string }) {
   return (
