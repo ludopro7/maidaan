@@ -156,7 +156,7 @@ export default async function HomePage() {
     ...(memberships || []).map((membership) => membership.team_id),
   ];
 
-  const uniqueTeamIds = [...new Set(teamIds)];
+  const uniqueTeamIds = Array.from(new Set(teamIds));
 
   /*
    * ---------------------------------------------------------
