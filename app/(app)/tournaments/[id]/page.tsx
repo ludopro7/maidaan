@@ -152,11 +152,9 @@ export default async function TournamentDetailPage({
           ball_type,
           pitch_type,
           eligibility,
-          points_for_win,
-          points_for_tie,
-          points_for_loss,
-          tie_breaker,
-          nrr_enabled
+          tie_rules,
+          nrr_rules,
+          points_system
         `
       )
       .eq("tournament_id", params.id)
@@ -531,21 +529,18 @@ export default async function TournamentDetailPage({
             <Rule label="Ball" value={rules.ball_type} />
             <Rule label="Pitch" value={rules.pitch_type} />
             <Rule label="Eligibility" value={rules.eligibility} />
-            <Rule label="Tie-breaker" value={rules.tie_breaker} />
+            <Rule label="Tie-breaker" value={rules.tie_rules} />
             <Rule
               label="Points"
               value={
-                rules.points_for_win != null
-                  ? `W ${rules.points_for_win} · T ${
-                      rules.points_for_tie ?? 0
-                    } · L ${rules.points_for_loss ?? 0}`
+                rules.points_system && (rules.points_system as any).win != null
+                  ? `W ${(rules.points_system as any).win} · T ${
+                      (rules.points_system as any).tie ?? 0
+                    } · L ${(rules.points_system as any).loss ?? 0}`
                   : null
               }
             />
-            <Rule
-              label="NRR"
-              value={rules.nrr_enabled ? "Enabled" : "Not enabled"}
-            />
+            <Rule label="NRR" value={rules.nrr_rules} />
           </div>
         ) : (
           <EmptyInline text="Tournament rules have not been published yet." />
