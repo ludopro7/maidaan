@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { saveProfile } from "./actions";
+import { ImageUploadField } from "../_components/image-upload-field";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -28,6 +29,7 @@ type Values = {
   playing_role: string;
   preferred_format: string;
   experience_years: string;
+  avatar_url: string;
 };
 
 export function ProfileForm({ defaultValues }: { defaultValues: Values }) {
@@ -48,6 +50,8 @@ export function ProfileForm({ defaultValues }: { defaultValues: Values }) {
 
   return (
     <form action={handleSubmit}>
+      <ImageUploadField name="avatar_url" label="Profile photo" defaultUrl={defaultValues.avatar_url} folder="avatar" />
+
       <label style={labelStyle}>Full name</label>
       <input name="full_name" defaultValue={defaultValues.full_name} style={inputStyle} />
 
