@@ -7,6 +7,31 @@ function oversDisplay(totalBalls: number) {
   return `${overs}.${balls}`;
 }
 
+function ballLabel(d: {
+  runs: number;
+  extra_type: string | null;
+  extra_runs: number;
+  is_wicket: boolean;
+}) {
+  if (d.is_wicket) return "W";
+  if (d.extra_type === "wide") return `${d.extra_runs}wd`;
+  if (d.extra_type === "noball") return `${d.extra_runs}nb`;
+  if (d.extra_type === "bye") return `${d.extra_runs}b`;
+  if (d.extra_type === "legbye") return `${d.extra_runs}lb`;
+  return String(d.runs);
+}
+
+function ballColor(d: {
+  runs: number;
+  extra_type: string | null;
+  is_wicket: boolean;
+}) {
+  if (d.is_wicket) return "var(--danger-500)";
+  if (d.extra_type) return "var(--warn-500)";
+  if (d.runs === 4 || d.runs === 6) return "var(--gold)";
+  return "var(--chalk-300)";
+}
+
 export default async function ScoringPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
 
@@ -29,12 +54,14 @@ export default async function ScoringPage({ params }: { params: { id: string } }
   const currentInnings = (inningsList || []).find((i: any) => i.status === "in_progress");
   const nextInningsNumber = ((inningsList || []).length + 1) as 1 | 2;
 
-  const { count: deliveryCount } = currentInnings
+  const { data: recentDeliveries, count: deliveryCount } = currentInnings
     ? await supabase
         .from("deliveries")
-        .select("id", { count: "exact", head: true })
+        .select("id, ball_sequence, runs, extra_type, extra_runs, is_wicket, wicket_type", { count: "exact" })
         .eq("innings_id", currentInnings.id)
-    : { count: 0 };
+        .order("ball_sequence", { ascending: false })
+        .limit(18)
+    : { data: [] as any[], count: 0 };
 
   const teamA = (match as any).team_a;
   const teamB = (match as any).team_b;
@@ -69,6 +96,43 @@ export default async function ScoringPage({ params }: { params: { id: string } }
           </div>
         );
       })}
+
+      {currentInnings && (recentDeliveries || []).length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: "var(--chalk-300)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+            This over · recent balls
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {[...(recentDeliveries || [])].reverse().map((d: any) => (
+              <div
+                key={d.id}
+                title={d.is_wicket ? d.wicket_type || "Out" : undefined}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: d.runs === 4 || d.runs === 6 || d.is_wicket ? "#10150f" : "var(--chalk-100)",
+                  background: d.is_wicket
+                    ? "var(--danger-500)"
+                    : d.runs === 4 || d.runs === 6
+                    ? "var(--gold)"
+                    : d.extra_type
+                    ? "rgba(217, 164, 65, 0.2)"
+                    : "var(--pitch-900)",
+                  border: `1px solid ${ballColor(d)}`,
+                }}
+              >
+                {ballLabel(d)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {currentInnings && (
         <ScoringPanel
