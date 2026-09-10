@@ -18,6 +18,7 @@ export async function createOfficial(formData: FormData): Promise<SaveResult> {
   const pricePerMatch = parseFloat(String(formData.get("price_per_match") || "0")) || 0;
   const bio = String(formData.get("bio") || "");
   const cityName = String(formData.get("city") || "").trim();
+  const photoUrl = String(formData.get("photo_url") || "") || null;
 
   if (!role) {
     return { success: false, message: "Role is required." };
@@ -53,6 +54,7 @@ export async function createOfficial(formData: FormData): Promise<SaveResult> {
         price_per_match: pricePerMatch,
         bio,
         city_id: cityId,
+        photo_url: photoUrl,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id" }
