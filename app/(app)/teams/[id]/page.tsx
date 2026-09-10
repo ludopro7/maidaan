@@ -1,7 +1,11 @@
 import { createClient } from "../../../../lib/supabase/server";
+import { AddMemberForm, RemoveMemberButton } from "./member-widgets";
 
 export default async function TeamDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: team } = await supabase
     .from("teams")
@@ -12,6 +16,8 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
   if (!team) {
     return <p style={{ color: "var(--chalk-300)" }}>Team not found.</p>;
   }
+
+  const isCaptain = team.captain_id === user?.id;
 
   const { data: members } = await supabase
     .from("team_members")
@@ -42,17 +48,33 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
           style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "center",
             padding: "10px 0",
             borderBottom: "1px solid var(--pitch-800)",
             fontSize: 14,
           }}
         >
           <span>{m.profiles?.full_name || m.profiles?.email || "Player"}</span>
-          <span style={{ color: "var(--chalk-300)", fontSize: 12, textTransform: "capitalize" }}>
-            {m.member_role}
+          <span style={{ display: "flex", alignItems: "center" }}>
+            <span style={{ color: "var(--chalk-300)", fontSize: 12, textTransform: "capitalize" }}>
+              {m.member_role}
+            </span>
+            {isCaptain && m.member_role !== "captain" && (
+              <RemoveMemberButton teamId={team.id} userId={m.user_id} />
+            )}
           </span>
         </div>
       ))}
+
+      {isCaptain && (
+        <>
+          <h2 style={{ fontSize: 16, marginBottom: 4, marginTop: 20 }}>Add a teammate</h2>
+          <p style={{ fontSize: 12, color: "var(--chalk-300)", margin: 0 }}>
+            They need a Maidan account already — enter the email they signed up with.
+          </p>
+          <AddMemberForm teamId={team.id} />
+        </>
+      )}
 
       <h2 style={{ fontSize: 16, marginBottom: 8, marginTop: 24 }}>Tournament registrations</h2>
       {(registrations || []).length === 0 && (
