@@ -1,5 +1,6 @@
 import { createClient } from "../../../../lib/supabase/server";
 import { CheckInButton } from "./checkin-button";
+import { AssignOfficialForm, RespondToAssignmentButtons } from "./officials-widgets";
 
 const roleLabel: Record<string, string> = {
   umpire: "Umpire",
@@ -16,7 +17,7 @@ export default async function MatchDayPage({ params }: { params: { id: string } 
   const { data: match } = await supabase
     .from("matches")
     .select(
-      "id, round, match_number, scheduled_at, status, tournaments(name), team_a_id, team_b_id, team_a:team_a_id(name), team_b:team_b_id(name), grounds(name, address)"
+      "id, round, match_number, scheduled_at, status, tournament_id, team_a_id, team_b_id, team_a:team_a_id(name), team_b:team_b_id(name), grounds(name, address), tournaments(name, organizer_id)"
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -25,11 +26,13 @@ export default async function MatchDayPage({ params }: { params: { id: string } 
     return <p style={{ color: "var(--chalk-300)" }}>Match not found.</p>;
   }
 
-  const [{ data: officials }, { data: squadA }, { data: squadB }, { data: checkins }] =
+  const isOrganizer = (match as any).tournaments?.organizer_id === user?.id;
+
+  const [{ data: officials }, { data: squadA }, { data: squadB }, { data: checkins }, { data: myOfficialProfile }, { data: availableOfficials }] =
     await Promise.all([
       supabase
         .from("match_officials")
-        .select("role, status, officials(profiles(full_name))")
+        .select("id, role, status, official_id, officials(user_id, profiles(full_name))")
         .eq("match_id", params.id),
       match.team_a_id
         ? supabase
@@ -44,6 +47,13 @@ export default async function MatchDayPage({ params }: { params: { id: string } 
             .eq("team_id", match.team_b_id)
         : Promise.resolve({ data: [] as any[] }),
       supabase.from("match_checkins").select("user_id").eq("match_id", params.id),
+      supabase.from("officials").select("id, user_id").eq("user_id", user?.id || "").maybeSingle(),
+      isOrganizer
+        ? supabase
+            .from("officials")
+            .select("id, role, profiles(full_name)")
+            .eq("status", "active")
+        : Promise.resolve({ data: [] as any[] }),
     ]);
 
   const checkedInIds = new Set((checkins || []).map((c: any) => c.user_id));
@@ -53,8 +63,13 @@ export default async function MatchDayPage({ params }: { params: { id: string } 
   const canCheckIn =
     isInSquad && !alreadyCheckedIn && !["completed", "cancelled", "postponed"].includes(match.status);
 
-  const umpireAssigned = (officials || []).some((o: any) => o.role !== "scorer" && o.status !== "declined");
-  const scorerAssigned = (officials || []).some((o: any) => o.role !== "umpire" && o.status !== "declined");
+  const umpireAssigned = (officials || []).some((o: any) => o.role !== "scorer" && o.status !== "cancelled");
+  const scorerAssigned = (officials || []).some((o: any) => o.role !== "umpire" && o.status !== "cancelled");
+
+  const assignedOfficialIds = new Set((officials || []).map((o: any) => o.official_id));
+  const officialOptions = (availableOfficials || [])
+    .filter((o: any) => !assignedOfficialIds.has(o.id))
+    .map((o: any) => ({ id: o.id, name: o.profiles?.full_name || "Official", role: roleLabel[o.role] }));
 
   return (
     <div style={{ maxWidth: 520 }}>
@@ -118,15 +133,27 @@ export default async function MatchDayPage({ params }: { params: { id: string } 
       <h2 style={{ fontSize: 16, marginBottom: 8, marginTop: 20 }}>{(match as any).team_b?.name} squad</h2>
       <SquadList members={squadB || []} checkedInIds={checkedInIds} />
 
-      {(officials || []).length > 0 && (
+      <h2 style={{ fontSize: 16, marginBottom: 8, marginTop: 20 }}>Officials</h2>
+      {(officials || []).length === 0 && (
+        <p style={{ fontSize: 13, color: "var(--chalk-300)" }}>No officials assigned yet.</p>
+      )}
+      {(officials || []).map((o: any) => {
+        const isMyAssignment = o.officials?.user_id === user?.id;
+        return (
+          <div key={o.id} style={{ fontSize: 14, padding: "8px 0", borderBottom: "1px solid var(--pitch-800)" }}>
+            {roleLabel[o.role]}: {o.officials?.profiles?.full_name || "Unnamed"}
+            <span style={{ color: "var(--chalk-300)", fontSize: 12 }}> · {o.status}</span>
+            {isMyAssignment && o.status === "assigned" && (
+              <RespondToAssignmentButtons matchId={match.id} matchOfficialId={o.id} />
+            )}
+          </div>
+        );
+      })}
+
+      {isOrganizer && (
         <>
-          <h2 style={{ fontSize: 16, marginBottom: 8, marginTop: 20 }}>Officials</h2>
-          {(officials || []).map((o: any, i: number) => (
-            <div key={i} style={{ fontSize: 14, padding: "8px 0", borderBottom: "1px solid var(--pitch-800)" }}>
-              {roleLabel[o.role]}: {o.officials?.profiles?.full_name || "Unnamed"}
-              <span style={{ color: "var(--chalk-300)", fontSize: 12 }}> · {o.status}</span>
-            </div>
-          ))}
+          <h3 style={{ fontSize: 13, marginTop: 16, marginBottom: 4, color: "var(--chalk-300)" }}>Assign an official</h3>
+          <AssignOfficialForm matchId={match.id} officials={officialOptions} />
         </>
       )}
     </div>
