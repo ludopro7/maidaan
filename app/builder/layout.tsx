@@ -59,6 +59,8 @@ export default async function BuilderLayout({ children }: { children: React.Reac
         {[
           { href: "/builder", label: "Overview" },
           { href: "/builder/settings/integrations", label: "Integrations" },
+          { href: "/builder/disputes", label: "Disputes" },
+          { href: "/builder/service-requests", label: "Service requests" },
         ].map((item) => (
           <a
             key={item.href}
