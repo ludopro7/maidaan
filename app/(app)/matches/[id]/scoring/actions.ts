@@ -26,6 +26,10 @@ export async function startInnings(
 
   if (error) return { success: false, message: error.message };
 
+  if (inningsNumber === 1) {
+    await supabase.rpc("mark_match_live", { p_match_id: matchId });
+  }
+
   revalidatePath(`/matches/${matchId}/scoring`);
   return { success: true, id: data.id };
 }
@@ -69,9 +73,22 @@ export async function recordDelivery(
 export async function completeInnings(matchId: string, inningsId: string): Promise<ActionResult> {
   const supabase = createClient();
 
+  const { data: innings, error: fetchError } = await supabase
+    .from("innings")
+    .select("innings_number")
+    .eq("id", inningsId)
+    .maybeSingle();
+
+  if (fetchError) return { success: false, message: fetchError.message };
+
   const { error } = await supabase.from("innings").update({ status: "completed" }).eq("id", inningsId);
 
   if (error) return { success: false, message: error.message };
+
+  if (innings?.innings_number === 2) {
+    const { error: finalizeError } = await supabase.rpc("finalize_match", { p_match_id: matchId });
+    if (finalizeError) return { success: false, message: finalizeError.message };
+  }
 
   revalidatePath(`/matches/${matchId}/scoring`);
   return { success: true };
