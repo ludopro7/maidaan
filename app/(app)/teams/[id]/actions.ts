@@ -35,7 +35,7 @@ export async function addMember(teamId: string, email: string): Promise<ActionRe
   const { error } = await supabase.from("team_members").insert({
     team_id: teamId,
     user_id: profile.id,
-    member_role: "member",
+    member_role: "player",
   });
 
   if (error) return { success: false, message: error.message };
@@ -58,4 +58,3 @@ export async function removeMember(teamId: string, userId: string): Promise<Acti
   revalidatePath(`/teams/${teamId}`);
   return { success: true };
 }
-
