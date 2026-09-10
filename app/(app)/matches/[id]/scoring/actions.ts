@@ -34,6 +34,30 @@ export async function startInnings(
   return { success: true, id: data.id };
 }
 
+export async function setInningsPlayers(
+  matchId: string,
+  inningsId: string,
+  strikerId: string,
+  nonStrikerId: string,
+  bowlerId: string
+): Promise<ActionResult> {
+  const supabase = createClient();
+
+  if (strikerId === nonStrikerId) {
+    return { success: false, message: "Striker and non-striker must be different players." };
+  }
+
+  const { error } = await supabase
+    .from("innings")
+    .update({ striker_id: strikerId, non_striker_id: nonStrikerId, bowler_id: bowlerId })
+    .eq("id", inningsId);
+
+  if (error) return { success: false, message: error.message };
+
+  revalidatePath(`/matches/${matchId}/scoring`);
+  return { success: true };
+}
+
 export async function recordDelivery(
   matchId: string,
   inningsId: string,
@@ -52,6 +76,17 @@ export async function recordDelivery(
 
   if (!user) return { success: false, message: "Not signed in." };
 
+  const { data: innings, error: inningsError } = await supabase
+    .from("innings")
+    .select("total_balls, striker_id, non_striker_id, bowler_id")
+    .eq("id", inningsId)
+    .maybeSingle();
+
+  if (inningsError) return { success: false, message: inningsError.message };
+  if (!innings?.striker_id || !innings?.non_striker_id || !innings?.bowler_id) {
+    return { success: false, message: "Set the striker, non-striker, and bowler first." };
+  }
+
   const { error } = await supabase.from("deliveries").insert({
     innings_id: inningsId,
     ball_sequence: ballSequence,
@@ -62,9 +97,39 @@ export async function recordDelivery(
     wicket_type: wicketType,
     is_legal_ball: isLegalBall,
     scored_by: user.id,
+    batter_id: innings.striker_id,
+    bowler_id: innings.bowler_id,
   });
 
   if (error) return { success: false, message: error.message };
+
+  // Strike rotation + over-end bowler reset + wicket handling.
+  let striker: string | null = innings.striker_id;
+  let nonStriker: string | null = innings.non_striker_id;
+  let bowler: string | null = innings.bowler_id;
+
+  const runningRuns = extraType === "bye" || extraType === "legbye" ? extraRuns : extraType ? 0 : runs;
+  const oddRuns = runningRuns % 2 === 1;
+  const newTotalBalls = innings.total_balls + (isLegalBall ? 1 : 0);
+  const overEnded = isLegalBall && newTotalBalls % 6 === 0;
+
+  if (oddRuns) {
+    [striker, nonStriker] = [nonStriker, striker];
+  }
+  if (overEnded) {
+    [striker, nonStriker] = [nonStriker, striker];
+    bowler = null;
+  }
+  if (isWicket) {
+    striker = null;
+  }
+
+  const { error: updateError } = await supabase
+    .from("innings")
+    .update({ striker_id: striker, non_striker_id: nonStriker, bowler_id: bowler })
+    .eq("id", inningsId);
+
+  if (updateError) return { success: false, message: updateError.message };
 
   revalidatePath(`/matches/${matchId}/scoring`);
   return { success: true };
