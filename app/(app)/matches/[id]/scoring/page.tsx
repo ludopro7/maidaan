@@ -36,6 +36,9 @@ export default async function ScoringPage({ params }: { params: { id: string } }
     return <p style={{ color: "var(--chalk-300)" }}>Match not found.</p>;
   }
 
+  const teamAId = match.team_a_id;
+  const teamBId = match.team_b_id;
+
   const { data: inningsList } = await supabase
     .from("innings")
     .select(
@@ -52,8 +55,8 @@ export default async function ScoringPage({ params }: { params: { id: string } }
 
   const [{ data: squadA }, { data: squadB }, { data: recentDeliveries, count: deliveryCount }, { data: allDeliveries }] =
     await Promise.all([
-      supabase.from("team_members").select("user_id, profiles(full_name)").eq("team_id", match.team_a_id),
-      supabase.from("team_members").select("user_id, profiles(full_name)").eq("team_id", match.team_b_id),
+      supabase.from("team_members").select("user_id, profiles(full_name)").eq("team_id", teamAId),
+      supabase.from("team_members").select("user_id, profiles(full_name)").eq("team_id", teamBId),
       currentInnings
         ? supabase
             .from("deliveries")
@@ -75,11 +78,10 @@ export default async function ScoringPage({ params }: { params: { id: string } }
   );
 
   function squadFor(teamId: string) {
-    const members = teamId === match.team_a_id ? squadA : squadB;
+    const members = teamId === teamAId ? squadA : squadB;
     return (members || []).map((m: any) => ({ id: m.user_id, name: m.profiles?.full_name || "Player" }));
   }
 
-  // Batting / bowling figures for the current innings, computed from deliveries.
   const battingFigures = new Map<string, { runs: number; balls: number; fours: number; sixes: number }>();
   const bowlingFigures = new Map<string, { runs: number; balls: number; wickets: number }>();
 
@@ -110,7 +112,7 @@ export default async function ScoringPage({ params }: { params: { id: string } }
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>Live scoring</h1>
 
       {(inningsList || []).map((inn: any) => {
-        const battingName = inn.batting_team_id === match.team_a_id ? teamA?.name : teamB?.name;
+        const battingName = inn.batting_team_id === teamAId ? teamA?.name : teamB?.name;
         return (
           <div
             key={inn.id}
@@ -222,9 +224,9 @@ export default async function ScoringPage({ params }: { params: { id: string } }
         <StartInningsForm
           matchId={params.id}
           inningsNumber={nextInningsNumber}
-          teamAId={match.team_a_id}
+          teamAId={teamAId}
           teamAName={teamA.name}
-          teamBId={match.team_b_id}
+          teamBId={teamBId}
           teamBName={teamB.name}
         />
       )}
