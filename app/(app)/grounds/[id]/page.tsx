@@ -16,7 +16,7 @@ export default async function GroundDetailPage({ params }: { params: { id: strin
 
   const { data: ground } = await supabase
     .from("grounds")
-    .select("id, name, address, owner_id, price_per_slot, slot_label, facilities, cities(name)")
+    .select("id, name, address, owner_id, price_per_slot, slot_label, facilities, photo_url, cities(name)")
     .eq("id", params.id)
     .maybeSingle();
 
@@ -34,6 +34,32 @@ export default async function GroundDetailPage({ params }: { params: { id: strin
 
   return (
     <div style={{ maxWidth: 520 }}>
+      {ground.photo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={ground.photo_url}
+          alt=""
+          style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 16, marginBottom: 16, display: "block" }}
+        />
+      ) : (
+        <div
+          style={{
+            width: "100%",
+            height: 120,
+            background: "var(--pitch-900)",
+            border: "1px solid var(--pitch-700)",
+            borderRadius: 16,
+            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 40,
+          }}
+        >
+          🏟️
+        </div>
+      )}
+
       <h1 style={{ fontSize: 22, marginBottom: 2 }}>{ground.name}</h1>
       <div style={{ fontSize: 13, color: "var(--chalk-300)", marginBottom: 4 }}>
         {(ground as any).cities?.name || "City TBD"}
