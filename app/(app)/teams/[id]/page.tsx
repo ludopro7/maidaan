@@ -1,60 +1,110 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { createClient } from "../../../../lib/supabase/server";
+import { AddMemberForm, RemoveMemberButton } from "./member-widgets";
 
-export type ActionResult = { success: true } | { success: false; message: string };
-
-export async function addMember(teamId: string, email: string): Promise<ActionResult> {
+export default async function TeamDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const trimmedEmail = email.trim();
-  if (!trimmedEmail) return { success: false, message: "Enter an email address." };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("email", trimmedEmail)
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id, name, description, captain_id, verification_status, cities(name)")
+    .eq("id", params.id)
     .maybeSingle();
 
-  if (!profile) {
-    return { success: false, message: "No Maidan account found with that email." };
+  if (!team) {
+    return <p style={{ color: "var(--chalk-300)" }}>Team not found.</p>;
   }
 
-  const { data: existing } = await supabase
+  const isCaptain = team.captain_id === user?.id;
+
+  const { data: members } = await supabase
     .from("team_members")
-    .select("user_id")
-    .eq("team_id", teamId)
-    .eq("user_id", profile.id)
-    .maybeSingle();
+    .select("user_id, member_role, profiles(full_name, email)")
+    .eq("team_id", params.id);
 
-  if (existing) {
-    return { success: false, message: "That player is already on the team." };
-  }
+  const { data: registrations } = await supabase
+    .from("tournament_teams")
+    .select("status, tournaments(id, name, start_date)")
+    .eq("team_id", params.id);
 
-  const { error } = await supabase.from("team_members").insert({
-    team_id: teamId,
-    user_id: profile.id,
-    member_role: "player",
-  });
+  return (
+    <div style={{ maxWidth: 520 }}>
+      <h1 style={{ fontSize: 22, marginBottom: 2 }}>{team.name}</h1>
+      <div style={{ fontSize: 13, color: "var(--chalk-300)", marginBottom: 4 }}>
+        {(team as any).cities?.name || "No city set"} · {team.verification_status}
+      </div>
+      {team.description && (
+        <p style={{ fontSize: 14, color: "var(--chalk-300)", marginBottom: 20 }}>
+          {team.description}
+        </p>
+      )}
 
-  if (error) return { success: false, message: error.message };
+      <h2 style={{ fontSize: 16, marginBottom: 8, marginTop: 20 }}>Roster</h2>
+      {(members || []).map((m: any) => (
+        <div
+          key={m.user_id}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 0",
+            borderBottom: "1px solid var(--pitch-800)",
+            fontSize: 14,
+          }}
+        >
+          <span>{m.profiles?.full_name || m.profiles?.email || "Player"}</span>
+          <span style={{ display: "flex", alignItems: "center" }}>
+            <span style={{ color: "var(--chalk-300)", fontSize: 12, textTransform: "capitalize" }}>
+              {m.member_role}
+            </span>
+            {isCaptain && m.member_role !== "captain" && (
+              <RemoveMemberButton teamId={team.id} userId={m.user_id} />
+            )}
+          </span>
+        </div>
+      ))}
 
-  revalidatePath(`/teams/${teamId}`);
-  return { success: true };
-}
+      {isCaptain && (
+        <>
+          <h2 style={{ fontSize: 16, marginBottom: 4, marginTop: 20 }}>Add a teammate</h2>
+          <p style={{ fontSize: 12, color: "var(--chalk-300)", margin: 0 }}>
+            They need a Maidan account already — enter the email they signed up with.
+          </p>
+          <AddMemberForm teamId={team.id} />
+        </>
+      )}
 
-export async function removeMember(teamId: string, userId: string): Promise<ActionResult> {
-  const supabase = createClient();
-
-  const { error } = await supabase
-    .from("team_members")
-    .delete()
-    .eq("team_id", teamId)
-    .eq("user_id", userId);
-
-  if (error) return { success: false, message: error.message };
-
-  revalidatePath(`/teams/${teamId}`);
-  return { success: true };
+      <h2 style={{ fontSize: 16, marginBottom: 8, marginTop: 24 }}>Tournament registrations</h2>
+      {(registrations || []).length === 0 && (
+        <p style={{ fontSize: 14, color: "var(--chalk-300)" }}>
+          Not registered for any tournaments yet. Find one in{" "}
+          <a href="/tournaments" style={{ color: "var(--ball-500)" }}>
+            Tournaments
+          </a>
+          .
+        </p>
+      )}
+      {(registrations || []).map((r: any, i: number) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            padding: "10px 0",
+            borderBottom: "1px solid var(--pitch-800)",
+            fontSize: 14,
+          }}
+        >
+          <a href={`/tournaments/${r.tournaments?.id}`} style={{ color: "inherit" }}>
+            {r.tournaments?.name}
+          </a>
+          <span style={{ color: "var(--warn-500)", fontSize: 12, textTransform: "capitalize" }}>
+            {r.status}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
