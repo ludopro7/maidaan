@@ -22,7 +22,7 @@ export default async function OfficialDetailPage({ params }: { params: { id: str
 
   const { data: official } = await supabase
     .from("officials")
-    .select("id, role, experience_years, price_per_match, bio, user_id, cities(name), profiles(full_name)")
+    .select("id, role, experience_years, price_per_match, bio, user_id, photo_url, cities(name), profiles(full_name)")
     .eq("id", params.id)
     .maybeSingle();
 
@@ -40,10 +40,39 @@ export default async function OfficialDetailPage({ params }: { params: { id: str
 
   return (
     <div style={{ maxWidth: 520 }}>
-      <h1 style={{ fontSize: 22, marginBottom: 2 }}>{(official as any).profiles?.full_name || "Official"}</h1>
-      <div style={{ fontSize: 13, color: "var(--chalk-300)", marginBottom: 4 }}>
-        {roleLabel[official.role]} · {official.experience_years ?? "?"} yrs · {(official as any).cities?.name || "City TBD"}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+        {official.photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={official.photo_url}
+            alt=""
+            style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--pitch-700)" }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              background: "var(--pitch-900)",
+              border: "1px solid var(--pitch-700)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 28,
+            }}
+          >
+            🧑‍⚖️
+          </div>
+        )}
+        <div>
+          <h1 style={{ fontSize: 22, margin: 0 }}>{(official as any).profiles?.full_name || "Official"}</h1>
+          <div style={{ fontSize: 13, color: "var(--chalk-300)", marginTop: 2 }}>
+            {roleLabel[official.role]} · {official.experience_years ?? "?"} yrs · {(official as any).cities?.name || "City TBD"}
+          </div>
+        </div>
       </div>
+
       <div style={{ fontSize: 14, marginBottom: 16 }}>
         ₹{Number(official.price_per_match).toLocaleString("en-IN")} / match
       </div>
