@@ -23,10 +23,11 @@ export async function saveProfile(formData: FormData): Promise<SaveResult> {
   const preferredFormat = String(formData.get("preferred_format") || "") || null;
   const experienceYearsRaw = String(formData.get("experience_years") || "");
   const experienceYears = experienceYearsRaw ? parseInt(experienceYearsRaw, 10) : null;
+  const avatarUrl = String(formData.get("avatar_url") || "") || null;
 
   const { error: profileError } = await supabase
     .from("profiles")
-    .update({ full_name: fullName, bio, updated_at: new Date().toISOString() })
+    .update({ full_name: fullName, bio, avatar_url: avatarUrl, updated_at: new Date().toISOString() })
     .eq("id", user.id);
 
   if (profileError) {
