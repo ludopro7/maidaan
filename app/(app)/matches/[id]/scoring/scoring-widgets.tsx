@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { recordDelivery, completeInnings, startInnings } from "./actions";
+import { recordDelivery, completeInnings, startInnings, setInningsPlayers } from "./actions";
 
 const btnBase: React.CSSProperties = {
   height: 54,
@@ -14,18 +14,53 @@ const btnBase: React.CSSProperties = {
   color: "var(--chalk-100)",
 };
 
+const selectStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 12px",
+  background: "var(--pitch-950)",
+  border: "1px solid var(--pitch-700)",
+  borderRadius: 8,
+  color: "var(--chalk-100)",
+  marginBottom: 10,
+  fontSize: 14,
+};
+
+type Player = { id: string; name: string };
+
 export function ScoringPanel({
   matchId,
   inningsId,
   nextBallSequence,
+  needsPlayers,
+  battingSquad,
+  bowlingSquad,
+  currentBatterName,
+  currentBowlerName,
 }: {
   matchId: string;
   inningsId: string;
   nextBallSequence: number;
+  needsPlayers: boolean;
+  battingSquad: Player[];
+  bowlingSquad: Player[];
+  currentBatterName: string | null;
+  currentBowlerName: string | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  if (needsPlayers) {
+    return (
+      <PlayerPickerForm
+        matchId={matchId}
+        inningsId={inningsId}
+        battingSquad={battingSquad}
+        bowlingSquad={bowlingSquad}
+        requireBothBatters={true}
+      />
+    );
+  }
 
   function ball(
     runs: number,
@@ -65,6 +100,10 @@ export function ScoringPanel({
 
   return (
     <div>
+      <div style={{ fontSize: 12, color: "var(--chalk-300)", marginBottom: 10 }}>
+        {currentBatterName || "Batter"} on strike · {currentBowlerName || "Bowler"} bowling
+      </div>
+
       {error && <div style={{ color: "var(--danger-500)", fontSize: 13, marginBottom: 10 }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 8 }}>
@@ -100,6 +139,100 @@ export function ScoringPanel({
           Bye +1
         </button>
       </div>
+    </div>
+  );
+}
+
+export function PlayerPickerForm({
+  matchId,
+  inningsId,
+  battingSquad,
+  bowlingSquad,
+  requireBothBatters,
+}: {
+  matchId: string;
+  inningsId: string;
+  battingSquad: Player[];
+  bowlingSquad: Player[];
+  requireBothBatters: boolean;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [striker, setStriker] = useState("");
+  const [nonStriker, setNonStriker] = useState("");
+  const [bowler, setBowler] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function save() {
+    if (!striker || !bowler || (requireBothBatters && !nonStriker)) {
+      setError("Fill in all fields.");
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await setInningsPlayers(matchId, inningsId, striker, nonStriker || striker, bowler);
+      if (result.success) {
+        router.refresh();
+      } else {
+        setError(result.message);
+      }
+    });
+  }
+
+  return (
+    <div style={{ background: "var(--pitch-900)", border: "1px solid var(--pitch-700)", borderRadius: 14, padding: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Set players</div>
+
+      <label style={{ fontSize: 12, color: "var(--chalk-300)" }}>Striker</label>
+      <select value={striker} onChange={(e) => setStriker(e.target.value)} style={selectStyle}>
+        <option value="">Select batter</option>
+        {battingSquad.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+
+      {requireBothBatters && (
+        <>
+          <label style={{ fontSize: 12, color: "var(--chalk-300)" }}>Non-striker</label>
+          <select value={nonStriker} onChange={(e) => setNonStriker(e.target.value)} style={selectStyle}>
+            <option value="">Select batter</option>
+            {battingSquad.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
+
+      <label style={{ fontSize: 12, color: "var(--chalk-300)" }}>Bowler</label>
+      <select value={bowler} onChange={(e) => setBowler(e.target.value)} style={selectStyle}>
+        <option value="">Select bowler</option>
+        {bowlingSquad.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+
+      {error && <div style={{ color: "var(--danger-500)", fontSize: 12, marginBottom: 10 }}>{error}</div>}
+
+      <button
+        onClick={save}
+        disabled={isPending}
+        style={{
+          padding: "10px 16px",
+          background: "var(--gold)",
+          color: "#10150f",
+          border: "none",
+          borderRadius: 8,
+          fontWeight: 700,
+        }}
+      >
+        {isPending ? "Saving…" : "Confirm"}
+      </button>
     </div>
   );
 }
