@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "../../../../lib/supabase/server";
 import { RegisterTeamButton } from "./register-team-button";
+import { OrganizerRegistrationButtons, WithdrawButton } from "./registration-widgets";
 
 type Tournament = {
   id: string;
@@ -19,8 +20,8 @@ type TeamRegistration = {
   id?: string;
   status: string;
   teams:
-    | { id: string; name: string }
-    | { id: string; name: string }[]
+    | { id: string; name: string; captain_id: string }
+    | { id: string; name: string; captain_id: string }[]
     | null;
 };
 
@@ -187,7 +188,7 @@ export default async function TournamentDetailPage({
         `
           id,
           status,
-          teams(id, name)
+          teams(id, name, captain_id)
         `
       )
       .eq("tournament_id", params.id)
@@ -694,6 +695,24 @@ export default async function TournamentDetailPage({
             ))}
           </div>
         )}
+
+        {teamRegistrations.map((registration, index) => {
+          const team = getTeam(registration.teams);
+          const isTeamCaptain = team?.captain_id === user.id;
+          return (
+            <div key={`actions-${registration.id || index}`}>
+              {isOrganizer && registration.status === "pending" && registration.id && (
+                <OrganizerRegistrationButtons tournamentId={params.id} registrationId={registration.id} />
+              )}
+              {!isOrganizer &&
+                isTeamCaptain &&
+                ["pending", "approved", "waitlisted"].includes(registration.status) &&
+                registration.id && (
+                  <WithdrawButton tournamentId={params.id} registrationId={registration.id} />
+                )}
+            </div>
+          );
+        })}
       </section>
 
       {/* TEAM REGISTRATION */}
@@ -1010,10 +1029,10 @@ function getCityName(
 
 function getTeam(
   teams:
-    | { id: string; name: string }
-    | { id: string; name: string }[]
+    | { id: string; name: string; captain_id: string }
+    | { id: string; name: string; captain_id: string }[]
     | null
-): { id: string; name: string } | null {
+): { id: string; name: string; captain_id: string } | null {
   if (!teams) return null;
   if (Array.isArray(teams)) {
     return teams[0] ?? null;
