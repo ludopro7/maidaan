@@ -20,7 +20,9 @@ export default async function EditTournamentPage({ params }: { params: { id: str
     return <p style={{ color: "var(--chalk-300)" }}>Tournament not found.</p>;
   }
 
-  if (tournament.organizer_id !== user?.id) {
+  const { data: isSuperAdmin } = await supabase.rpc("is_super_admin");
+
+  if (tournament.organizer_id !== user?.id && !isSuperAdmin) {
     return <p style={{ color: "var(--chalk-300)" }}>Only the organizer can edit this tournament.</p>;
   }
 
