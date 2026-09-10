@@ -25,6 +25,7 @@ export async function createGround(formData: FormData): Promise<SaveResult> {
     .split(",")
     .map((f) => f.trim())
     .filter(Boolean);
+  const photoUrl = String(formData.get("photo_url") || "") || null;
 
   if (!name) {
     return { success: false, message: "Ground name is required." };
@@ -60,6 +61,7 @@ export async function createGround(formData: FormData): Promise<SaveResult> {
       price_per_slot: pricePerSlot,
       slot_label: slotLabel,
       facilities,
+      photo_url: photoUrl,
     })
     .select("id")
     .single();
