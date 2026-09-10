@@ -11,7 +11,7 @@ export default async function OfficialsPage() {
 
   const { data: officials } = await supabase
     .from("officials")
-    .select("id, role, experience_years, price_per_match, cities(name), profiles(full_name)")
+    .select("id, role, experience_years, price_per_match, photo_url, cities(name), profiles(full_name)")
     .eq("status", "active")
     .order("created_at", { ascending: false });
 
@@ -44,7 +44,9 @@ export default async function OfficialsPage() {
           key={o.id}
           href={`/officials/${o.id}`}
           style={{
-            display: "block",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
             background: "var(--pitch-900)",
             border: "1px solid var(--pitch-700)",
             borderRadius: 12,
@@ -52,12 +54,39 @@ export default async function OfficialsPage() {
             marginBottom: 10,
           }}
         >
-          <div style={{ fontWeight: 600 }}>{o.profiles?.full_name || "Official"}</div>
-          <div style={{ fontSize: 12, color: "var(--chalk-300)", marginTop: 4 }}>
-            {roleLabel[o.role]} · {o.experience_years ?? "?"} yrs · {o.cities?.name || "City TBD"}
-          </div>
-          <div style={{ fontSize: 13, marginTop: 6 }}>
-            ₹{Number(o.price_per_match).toLocaleString("en-IN")} / match
+          {o.photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={o.photo_url}
+              alt=""
+              style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid var(--pitch-700)" }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "var(--pitch-950)",
+                border: "1px solid var(--pitch-700)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 18,
+                flexShrink: 0,
+              }}
+            >
+              🧑‍⚖️
+            </div>
+          )}
+          <div>
+            <div style={{ fontWeight: 600 }}>{o.profiles?.full_name || "Official"}</div>
+            <div style={{ fontSize: 12, color: "var(--chalk-300)", marginTop: 4 }}>
+              {roleLabel[o.role]} · {o.experience_years ?? "?"} yrs · {o.cities?.name || "City TBD"}
+            </div>
+            <div style={{ fontSize: 13, marginTop: 6 }}>
+              ₹{Number(o.price_per_match).toLocaleString("en-IN")} / match
+            </div>
           </div>
         </a>
       ))}
