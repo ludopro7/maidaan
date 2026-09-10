@@ -8,7 +8,7 @@ export default async function ProfilePage() {
   } = await supabase.auth.getUser();
 
   const [{ data: profile }, { data: player }] = await Promise.all([
-    supabase.from("profiles").select("full_name, bio").eq("id", user!.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, bio, avatar_url").eq("id", user!.id).maybeSingle(),
     supabase
       .from("players")
       .select(
@@ -22,7 +22,33 @@ export default async function ProfilePage() {
 
   return (
     <div style={{ maxWidth: 480 }}>
-      <h1 style={{ fontSize: 22, marginBottom: 4 }}>Your profile</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+        {profile?.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={profile.avatar_url}
+            alt=""
+            style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--pitch-700)" }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "var(--pitch-900)",
+              border: "1px solid var(--pitch-700)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 22,
+            }}
+          >
+            🏏
+          </div>
+        )}
+        <h1 style={{ fontSize: 22, margin: 0 }}>Your profile</h1>
+      </div>
       <p style={{ color: "var(--chalk-300)", fontSize: 14, marginBottom: 24 }}>{user!.email}</p>
 
       {reliability !== null && (
@@ -67,6 +93,7 @@ export default async function ProfilePage() {
           playing_role: player?.playing_role || "",
           preferred_format: player?.preferred_format || "",
           experience_years: player?.experience_years?.toString() || "",
+          avatar_url: profile?.avatar_url || "",
         }}
       />
     </div>
