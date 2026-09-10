@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createGround } from "./actions";
+import { ImageUploadField } from "../../_components/image-upload-field";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -36,6 +37,8 @@ export function GroundForm() {
 
   return (
     <form action={handleSubmit}>
+      <ImageUploadField name="photo_url" label="Ground photo" folder="ground" />
+
       <label style={labelStyle}>Ground name</label>
       <input name="name" required style={inputStyle} placeholder="e.g. Sports City Cricket Ground" />
 
