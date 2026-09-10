@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createOfficial } from "./actions";
+import { ImageUploadField } from "../../_components/image-upload-field";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -36,6 +37,8 @@ export function OfficialForm() {
 
   return (
     <form action={handleSubmit}>
+      <ImageUploadField name="photo_url" label="Profile photo" folder="official" />
+
       <label style={labelStyle}>Role</label>
       <select name="role" required style={inputStyle} defaultValue="">
         <option value="" disabled>
