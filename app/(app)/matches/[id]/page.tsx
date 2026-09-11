@@ -1,6 +1,8 @@
 import { createClient } from "../../../../lib/supabase/server";
 import { CheckInButton } from "./checkin-button";
 import { AssignOfficialForm, RespondToAssignmentButtons } from "./officials-widgets";
+import { LikeButton } from "./like-button";
+import { Comments } from "./comments";
 
 const roleLabel: Record<string, string> = {
   umpire: "Umpire",
@@ -28,33 +30,49 @@ export default async function MatchDayPage({ params }: { params: { id: string } 
 
   const isOrganizer = (match as any).tournaments?.organizer_id === user?.id;
 
-  const [{ data: officials }, { data: squadA }, { data: squadB }, { data: checkins }, { data: myOfficialProfile }, { data: availableOfficials }] =
-    await Promise.all([
-      supabase
-        .from("match_officials")
-        .select("id, role, status, official_id, officials(user_id, profiles(full_name))")
-        .eq("match_id", params.id),
-      match.team_a_id
-        ? supabase
-            .from("team_members")
-            .select("user_id, member_role, profiles(full_name)")
-            .eq("team_id", match.team_a_id)
-        : Promise.resolve({ data: [] as any[] }),
-      match.team_b_id
-        ? supabase
-            .from("team_members")
-            .select("user_id, member_role, profiles(full_name)")
-            .eq("team_id", match.team_b_id)
-        : Promise.resolve({ data: [] as any[] }),
-      supabase.from("match_checkins").select("user_id").eq("match_id", params.id),
-      supabase.from("officials").select("id, user_id").eq("user_id", user?.id || "").maybeSingle(),
-      isOrganizer
-        ? supabase
-            .from("officials")
-            .select("id, role, profiles(full_name)")
-            .eq("status", "active")
-        : Promise.resolve({ data: [] as any[] }),
-    ]);
+  const [
+    { data: officials },
+    { data: squadA },
+    { data: squadB },
+    { data: checkins },
+    { data: availableOfficials },
+    { data: likes },
+    { data: myLike },
+    { data: comments },
+  ] = await Promise.all([
+    supabase
+      .from("match_officials")
+      .select("id, role, status, official_id, officials(user_id, profiles(full_name))")
+      .eq("match_id", params.id),
+    match.team_a_id
+      ? supabase
+          .from("team_members")
+          .select("user_id, member_role, profiles(full_name)")
+          .eq("team_id", match.team_a_id)
+      : Promise.resolve({ data: [] as any[] }),
+    match.team_b_id
+      ? supabase
+          .from("team_members")
+          .select("user_id, member_role, profiles(full_name)")
+          .eq("team_id", match.team_b_id)
+      : Promise.resolve({ data: [] as any[] }),
+    supabase.from("match_checkins").select("user_id").eq("match_id", params.id),
+    isOrganizer
+      ? supabase
+          .from("officials")
+          .select("id, role, profiles(full_name)")
+          .eq("status", "active")
+      : Promise.resolve({ data: [] as any[] }),
+    supabase.from("match_likes").select("id", { count: "exact", head: false }).eq("match_id", params.id),
+    user
+      ? supabase.from("match_likes").select("id").eq("match_id", params.id).eq("user_id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("match_comments")
+      .select("id, content, created_at, user_id, profiles(full_name)")
+      .eq("match_id", params.id)
+      .order("created_at", { ascending: true }),
+  ]);
 
   const checkedInIds = new Set((checkins || []).map((c: any) => c.user_id));
   const squad = [...(squadA || []), ...(squadB || [])];
@@ -93,6 +111,9 @@ export default async function MatchDayPage({ params }: { params: { id: string } 
         <div style={{ textAlign: "center", fontSize: 12, color: "var(--chalk-300)", marginTop: 10 }}>
           {(match as any).grounds?.name || "Ground TBD"}
           {match.scheduled_at ? ` · ${new Date(match.scheduled_at).toLocaleString()}` : ""}
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+          <LikeButton matchId={match.id} initialLiked={!!myLike} initialCount={likes?.length || 0} />
         </div>
       </div>
 
@@ -156,6 +177,10 @@ export default async function MatchDayPage({ params }: { params: { id: string } 
           <AssignOfficialForm matchId={match.id} officials={officialOptions} />
         </>
       )}
+
+      <div style={{ marginTop: 28 }}>
+        <Comments matchId={match.id} comments={(comments || []) as any} currentUserId={user?.id || null} />
+      </div>
     </div>
   );
 }
