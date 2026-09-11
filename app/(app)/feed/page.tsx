@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
+import { LikeButton } from "../matches/[id]/like-button";
 
 export default async function FeedPage() {
   const supabase = createClient();
@@ -83,6 +84,22 @@ export default async function FeedPage() {
     return Array.from(ids).map((id) => nameById.get(id) || "Player");
   }
 
+  const matchIds = (matches || []).map((m: any) => m.id);
+  const [{ data: allLikes }, { data: myLikes }] = await Promise.all([
+    matchIds.length > 0
+      ? supabase.from("match_likes").select("match_id").in("match_id", matchIds)
+      : Promise.resolve({ data: [] as any[] }),
+    matchIds.length > 0
+      ? supabase.from("match_likes").select("match_id").in("match_id", matchIds).eq("user_id", user.id)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const likeCounts = new Map<string, number>();
+  for (const l of allLikes || []) {
+    likeCounts.set(l.match_id, (likeCounts.get(l.match_id) || 0) + 1);
+  }
+  const myLikedIds = new Set((myLikes || []).map((l: any) => l.match_id));
+
   return (
     <div style={{ maxWidth: 520, margin: "0 auto" }}>
       <h1 style={{ fontSize: 22, marginBottom: 4 }}>Feed</h1>
@@ -100,11 +117,9 @@ export default async function FeedPage() {
         const names = followedNamesForMatch(m);
 
         return (
-          <Link
+          <div
             key={m.id}
-            href={`/matches/${m.id}`}
             style={{
-              display: "block",
               background: "var(--pitch-900)",
               border: "1px solid var(--pitch-700)",
               borderRadius: 14,
@@ -112,22 +127,27 @@ export default async function FeedPage() {
               marginBottom: 12,
             }}
           >
-            <div style={{ fontSize: 11, color: "var(--chalk-300)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
-              {m.tournaments?.name || "Match"} · {m.scheduled_at ? new Date(m.scheduled_at).toLocaleDateString() : ""}
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>
-              {m.team_a?.name || "TBD"} vs {m.team_b?.name || "TBD"}
-            </div>
-            <div style={{ fontSize: 13, color: "var(--gold)", fontWeight: 700, marginTop: 4 }}>
-              {winnerName ? `${winnerName} won` : "Match tied"}
-              {m.result_summary ? ` · ${m.result_summary}` : ""}
-            </div>
-            {names.length > 0 && (
-              <div style={{ fontSize: 12, color: "var(--chalk-300)", marginTop: 8 }}>
-                Following: {names.join(", ")}
+            <Link href={`/matches/${m.id}`} style={{ display: "block", textDecoration: "none", color: "inherit" }}>
+              <div style={{ fontSize: 11, color: "var(--chalk-300)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
+                {m.tournaments?.name || "Match"} · {m.scheduled_at ? new Date(m.scheduled_at).toLocaleDateString() : ""}
               </div>
-            )}
-          </Link>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>
+                {m.team_a?.name || "TBD"} vs {m.team_b?.name || "TBD"}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--gold)", fontWeight: 700, marginTop: 4 }}>
+                {winnerName ? `${winnerName} won` : "Match tied"}
+                {m.result_summary ? ` · ${m.result_summary}` : ""}
+              </div>
+              {names.length > 0 && (
+                <div style={{ fontSize: 12, color: "var(--chalk-300)", marginTop: 8 }}>
+                  Following: {names.join(", ")}
+                </div>
+              )}
+            </Link>
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--pitch-800)" }}>
+              <LikeButton matchId={m.id} initialLiked={myLikedIds.has(m.id)} initialCount={likeCounts.get(m.id) || 0} />
+            </div>
+          </div>
         );
       })}
     </div>
