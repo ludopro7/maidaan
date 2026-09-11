@@ -1,4 +1,5 @@
 import { createClient } from "../../../lib/supabase/server";
+import { getCareerStats } from "../../../lib/cricket-stats";
 import { ProfileForm } from "./profile-form";
 
 export default async function ProfilePage() {
@@ -7,7 +8,7 @@ export default async function ProfilePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: player }] = await Promise.all([
+  const [{ data: profile }, { data: player }, stats] = await Promise.all([
     supabase.from("profiles").select("full_name, bio, avatar_url").eq("id", user!.id).maybeSingle(),
     supabase
       .from("players")
@@ -16,6 +17,7 @@ export default async function ProfilePage() {
       )
       .eq("user_id", user!.id)
       .maybeSingle(),
+    getCareerStats(supabase, user!.id),
   ]);
 
   const reliability = player?.reliability_score != null ? Number(player.reliability_score) : null;
@@ -58,7 +60,7 @@ export default async function ProfilePage() {
             border: "1px solid var(--pitch-700)",
             borderRadius: 14,
             padding: 16,
-            marginBottom: 24,
+            marginBottom: 20,
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -81,6 +83,47 @@ export default async function ProfilePage() {
             {player?.matches_completed ?? 0} matches completed · {player?.no_show_count ?? 0} no-shows ·{" "}
             {player?.late_cancel_count ?? 0} late cancels
           </div>
+        </div>
+      )}
+
+      {(stats.batting.innings > 0 || stats.bowling.innings > 0) && (
+        <div
+          style={{
+            background: "var(--pitch-900)",
+            border: "1px solid var(--pitch-700)",
+            borderRadius: 14,
+            padding: 16,
+            marginBottom: 24,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--chalk-300)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+            Career stats
+          </div>
+
+          {stats.batting.innings > 0 && (
+            <div style={{ marginBottom: stats.bowling.innings > 0 ? 14 : 0 }}>
+              <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700, marginBottom: 6 }}>Batting</div>
+              <div style={{ fontSize: 13, color: "var(--chalk-100)" }}>
+                {stats.batting.runs} runs · {stats.batting.innings} inn · HS {stats.batting.highScore} ·{" "}
+                Avg {stats.batting.average != null ? stats.batting.average.toFixed(1) : "—"} · SR{" "}
+                {stats.batting.strikeRate != null ? stats.batting.strikeRate.toFixed(1) : "—"}
+              </div>
+            </div>
+          )}
+
+          {stats.bowling.innings > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700, marginBottom: 6 }}>Bowling</div>
+              <div style={{ fontSize: 13, color: "var(--chalk-100)" }}>
+                {stats.bowling.wickets} wkts · {stats.bowling.innings} inn · Best {stats.bowling.bestFigures || "—"} ·{" "}
+                Econ {stats.bowling.economy != null ? stats.bowling.economy.toFixed(2) : "—"}
+              </div>
+            </div>
+          )}
+
+          <a href="/cricket" style={{ display: "block", marginTop: 12, fontSize: 12, color: "var(--gold)", fontWeight: 700 }}>
+            View full cricket hub →
+          </a>
         </div>
       )}
 
