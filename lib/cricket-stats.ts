@@ -58,7 +58,7 @@ export async function getCareerStats(
     sixes = 0,
     highScore = 0,
     dismissals = 0;
-  for (const inn of battingByInnings.values()) {
+  for (const inn of Array.from(battingByInnings.values())) {
     battingRuns += inn.runs;
     battingBalls += inn.balls;
     fours += inn.fours;
@@ -94,7 +94,7 @@ export async function getCareerStats(
     bowlingRuns = 0,
     bowlingBalls = 0;
   let bestFigures: { wickets: number; runs: number } | null = null;
-  for (const inn of bowlingByInnings.values()) {
+  for (const inn of Array.from(bowlingByInnings.values())) {
     bowlingWickets += inn.wickets;
     bowlingRuns += inn.runs;
     bowlingBalls += inn.balls;
