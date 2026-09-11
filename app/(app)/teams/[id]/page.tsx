@@ -54,7 +54,9 @@ export default async function TeamDetailPage({ params }: { params: { id: string 
             fontSize: 14,
           }}
         >
-          <span>{m.profiles?.full_name || m.profiles?.email || "Player"}</span>
+          <a href={`/players/${m.user_id}`} style={{ color: "inherit", textDecoration: "none" }}>
+            {m.profiles?.full_name || m.profiles?.email || "Player"}
+          </a>
           <span style={{ display: "flex", alignItems: "center" }}>
             <span style={{ color: "var(--chalk-300)", fontSize: 12, textTransform: "capitalize" }}>
               {m.member_role}
